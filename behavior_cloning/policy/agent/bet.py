@@ -41,7 +41,13 @@ class Actor(nn.Module):
 		# TODO: Define the policy network
 		# Hint: There must be a common trunk followed by two heads - one for binning and one for offsets
 		self.trunk = nn.Sequential(
-			nn.Linear(repr_dim, hidden_dim),
+			nn.Linear(repr_dim * 2, hidden_dim),
+			nn.ReLU(inplace=True),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.ReLU(inplace=True),
+			nn.Linear(hidden_dim, hidden_dim),
+			nn.ReLU(inplace=True),
+			nn.Linear(hidden_dim, hidden_dim),
 			nn.ReLU(inplace=True),
 			nn.Linear(hidden_dim, hidden_dim),
 			nn.ReLU(inplace=True),
@@ -50,15 +56,12 @@ class Actor(nn.Module):
 		)
 
 		self.bin_head = nn.Sequential(
-			nn.Linear(hidden_dim, hidden_dim),
-			nn.ReLU(inplace=True),
 			nn.Linear(hidden_dim, nbins),
+			# nn.Tanh()
 			nn.Softmax(dim=1)
 		)
 
 		self.offset_head = nn.Sequential(
-			nn.Linear(hidden_dim, hidden_dim),
-			nn.ReLU(inplace=True),
 			nn.Linear(hidden_dim, action_shape[0]),
 			nn.Tanh()
 		)
@@ -66,14 +69,12 @@ class Actor(nn.Module):
 		self.apply(utils.weight_init)
 
 	def forward(self, obs, std, cluster_centers=None):
-		
 		# TODO: Implement the forward pass, return bin_logits, and offset
-		# repr = torch.concat((obs, cluster_centers), dim=0)
-
-		common = self.trunk(obs)
-		bin_logits = self.bin_head(common)
-		offset = self.offset_head(common)
-
+		# reshaped_centroids = cluster_centers.reshape(1, cluster_centers.shape[0] * cluster_centers.shape[1])
+		# input_repr = torch.cat((obs, reshaped_centroids.expand(obs.shape[0], -1)), dim=1)
+		features = self.trunk(obs)
+		bin_logits = torch.tanh(self.bin_head(features))
+		offset = self.offset_head(features)
 		return bin_logits, offset
 
 class Agent:
@@ -145,16 +146,6 @@ class Agent:
 		
 	def find_closest_cluster(self, actions) -> torch.Tensor:
 		# TODO: Return the index of closest cluster center for each action in actions
-		# Return shape: (N, )
-		# closest_cluster_center = torch.zeros(actions.shape[0])
-		# for i, action in enumerate(actions):
-		# 	closest_center_id = 0
-		# 	min_dist = (torch.square(self.cluster_centers[0]) - torch.square(action)) ** (1/2)
-		# 	for j in range(1, len(closest_cluster_center)):
-		# 		if (torch.square(self.cluster_centers[i]) - torch.square(action)) ** (1/2) < min_dist:
-		# 			closest_center_id = j
-		# 			min_dist = (torch.square(self.cluster_centers[i]) - torch.square(action)) ** (1/2)
-		# 	closest_cluster_center[i] = closest_center_id
 		distances = torch.cdist(actions, self.cluster_centers, p=2)
 		closest_cluster_center = distances.argmin(dim=1, keepdim=True)
 		return closest_cluster_center
@@ -166,12 +157,13 @@ class Agent:
 		
 		# TODO: Obtain bin_logits and offset from the actor
 		stddev = utils.schedule(self.stddev_schedule, step)
-		bin_logits, offset = self.actor.forward(obs, stddev, self.cluster_centers)
+		bin_logits, offset = self.actor.forward(torch.cat((obs, goal), dim=1), stddev, self.cluster_centers)
 
 		# TODO: Compute base action (Hint: Use the bin_logits)
 		argmax_id = torch.argmax(bin_logits).item()
+
 		base_action = self.cluster_centers[argmax_id]
-		
+		# print(argmax_id, base_action)
 		action = base_action + self.offset_weight * offset
 		return action.cpu().numpy()[0]
 
@@ -182,16 +174,14 @@ class Agent:
 		obs, action, goal = utils.to_torch(batch, self.device)
 		obs, action, goal = obs.float(), action.float(), goal.float()
 
-
 		# augment
 		if self.use_encoder:
 			# TODO: Augment the observations and encode them (for pixels)
 			pass
 
-
 		# TODO: Compute bin_logits and offset from the actor
 		stddev = utils.schedule(self.stddev_schedule, step)
-		bin_logits, offset = self.actor.forward(obs, stddev, self.cluster_centers)
+		bin_logits, offset = self.actor.forward(torch.cat((obs, goal), dim=1), stddev, self.cluster_centers)
 
 		# TODO: Compute discrete loss on bins and offset loss
 		argmax_id = torch.argmax(bin_logits, dim=1)
@@ -207,6 +197,9 @@ class Agent:
 
 		# TODO: Update the actor (and encoder for pixels)
 		self.actor_opt.zero_grad(set_to_none=True)
+		actor_loss.backward()
+		self.actor_opt.step()
+
 		if self.use_tb:
 			metrics['actor_loss'] = actor_loss.item()
 			metrics['discrete_loss'] = discrete_loss.mean().item()

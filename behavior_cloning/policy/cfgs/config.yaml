@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - agent: bc
+  - agent: bet
   - suite: particle
   - override hydra/launcher: submitit_local
 
@@ -16,8 +16,8 @@ batch_size: 256
 
 # experiment
 obs_type: 'features' # pixels, features
-experiment: bc
-dataset_type: 'fixed_goal' # fixed_goal, changing_goal, multimodal
+experiment: bet
+dataset_type: 'multimodal' # fixed_goal, changing_goal, multimodal
 
 # expert dataset
 train_test_ratio: 0.8
