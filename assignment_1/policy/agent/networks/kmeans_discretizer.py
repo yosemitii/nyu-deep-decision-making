@@ -37,20 +37,9 @@ class KMeansDiscretizer:
 		# TODO: Implement KMeans algorithm to cluster x into nbin bins. Return the bin centers - shape (nbin, x.shape[-1])
 		# bin_centers = None
 		x_numpy = x.numpy()  # Convert PyTorch tensor to NumPy array
-
-		# Initialize KMeans with the desired parameters
+`
 		kmeans = KMeans(n_clusters=nbin, max_iter=niter, random_state=0)
-
-		# Fit the KMeans algorithm to the data
 		kmeans.fit(x_numpy)
-
-		# Get the cluster labels (assignments) for each data point
-		cluster_labels = kmeans.labels_
-
-		# Optional: Convert cluster labels back to a PyTorch tensor
-		cluster_labels_tensor = torch.tensor(cluster_labels)
-
-		# If you need the cluster centers as a PyTorch tensor
 		cluster_centers = kmeans.cluster_centers_
 		cluster_centers_tensor = torch.tensor(cluster_centers)
 		return cluster_centers_tensor
@@ -73,7 +62,6 @@ class KMeansDiscretizer:
 		# 	distances = torch.cdist(x, bin_centers)  # Compute all distances between data points and centroids
 		# 	closest = distances.argmin(dim=1)  # Find the closest centroid for each data point
 		#
-		# 	# Update step - Compute new centroids as the mean of the points in each cluster
 		# 	for k in range(nbin):
 		# 		if (closest == k).any():
 		# 			bin_centers[k] = x[closest == k].mean(dim=0)
