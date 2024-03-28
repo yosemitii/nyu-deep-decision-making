@@ -1,11 +1,11 @@
 defaults:
   - _self_
-  - agent: bet
+  - agent: bc
   - suite: particle
   - override hydra/launcher: submitit_local
 
 # Root Dir
-root_dir: /Users/sun/Projects/nyu/decision_making/nyu-deep-decision-making/behavior_cloning
+root_dir: /Users/sun/Projects/nyu/decision_making/nyu-deep-decision-making/assignment_1
 
 # misc
 seed: 42
@@ -16,7 +16,7 @@ batch_size: 256
 
 # experiment
 obs_type: 'features' # pixels, features
-experiment: bet
+experiment: bc
 dataset_type: 'multimodal' # fixed_goal, changing_goal, multimodal
 
 # expert dataset
